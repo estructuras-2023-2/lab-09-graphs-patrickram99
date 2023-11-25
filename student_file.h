@@ -1,73 +1,124 @@
-#include <bits/stdc++.h>
+// union_find.h
+#include <string>
+#include <vector>
+#include <sstream>
+#include <map>
+#include <set>
+#include <algorithm>
+#include <iostream>
+
 using namespace std;
 
-struct edge {
-    string id;
-    int u, v, cost;
-    bool operator<(const edge& e) const {
-        if(cost != e.cost) return cost < e.cost;
-        return id < e.id;
+class UnionFind {
+private:
+  map<string, string> padre;
+  map<string, int> rango;
+
+public:
+  // Inicializa un conjunto con un elemento.
+  void hacerConjunto(const string& elemento) {
+    padre[elemento] = elemento;
+    rango[elemento] = 0;
+  }
+
+  // Encuentra el representante del conjunto al que pertenece el elemento.
+  string encontrar(const string& elemento) {
+    if (padre[elemento] != elemento)
+      padre[elemento] = encontrar(padre[elemento]);
+    return padre[elemento];
+  }
+
+  // Une dos conjuntos, devuelve true si los conjuntos eran diferentes y se unieron.
+  bool unirConjuntos(const string& a, const string& b) {
+    string raizA = encontrar(a);
+    string raizB = encontrar(b);
+
+    if (raizA == raizB)
+      return false;
+
+    if (rango[raizA] < rango[raizB])
+      padre[raizA] = raizB;
+    else if (rango[raizA] > rango[raizB])
+      padre[raizB] = raizA;
+    else {
+      padre[raizB] = raizA;
+      rango[raizA]++;
     }
+
+    return true;
+  }
 };
 
-vector<int> parent;
-int find_set(int v) {
-    if (v == parent[v])
-        return v;
-    return parent[v] = find_set(parent[v]);
-}
+class Carretera {
+public:
+  string id;
+  string ciudad1;
+  string ciudad2;
+  int costo;
 
-void make_set(int v) {
-    parent[v] = v;
-}
+  Carretera(string i, string c1, string c2, int co = 0) : id(i), ciudad1(c1), ciudad2(c2), costo(co) {}
+};
 
-void union_sets(int a, int b) {
-    a = find_set(a);
-    b = find_set(b);
-    if (a != b)
-        parent[b] = a;
-}
+// Reconstruye y devuelve la lista de carreteras seleccionadas.
+string reconstruye(vector<string> listaCarreteras) {
+  vector<Carretera> carreterasDeterioradas;
+  UnionFind uf;
+  set<string> ciudades;
+  set<string> carreterasSeleccionadas;
 
-vector<string> reconstructRoads(vector<string> roads) {
-    map<string, int> city_to_int;
-    vector<edge> edges;
-    int city_counter = 0;
-    for(string road : roads) {
-        stringstream ss(road);
-        string id, city1, city2;
-        int cost = -1;
-        ss >> id >> city1 >> city2;
-        if(ss >> cost) {
-            if(city_to_int.find(city1) == city_to_int.end()) city_to_int[city1] = city_counter++;
-            if(city_to_int.find(city2) == city_to_int.end()) city_to_int[city2] = city_counter++;
-            edges.push_back({id, city_to_int[city1], city_to_int[city2], cost});
-        }
+  // Inicializa conjuntos para cada ciudad.
+  for (const auto& carreteraStr : listaCarreteras) {
+    stringstream ss(carreteraStr);
+    string id, ciudad1, ciudad2;
+    ss >> id >> ciudad1 >> ciudad2;
+    uf.hacerConjunto(ciudad1);
+    uf.hacerConjunto(ciudad2);
+    ciudades.insert(ciudad1);
+    ciudades.insert(ciudad2);
+  }
+
+  // Clasifica carreteras según su estado.
+  for (const auto& carreteraStr : listaCarreteras) {
+    stringstream ss(carreteraStr);
+    string id, ciudad1, ciudad2;
+    int costo = 0;
+    ss >> id >> ciudad1 >> ciudad2;
+    if (!(ss >> costo)) {
+      uf.unirConjuntos(ciudad1, ciudad2);
+    } else {
+      carreterasDeterioradas.emplace_back(id, ciudad1, ciudad2, costo);
     }
-    sort(edges.begin(), edges.end());
-    parent.resize(city_counter);
-    for(int i = 0; i < city_counter; i++) make_set(i);
-    vector<string> result;
-    for(auto e : edges) {
-        if(find_set(e.u) != find_set(e.v)) {
-            result.push_back(e.id);
-            union_sets(e.u, e.v);
-        }
-    }
-    for(int i = 1; i < city_counter; i++) {
-        if(find_set(i) != find_set(0)) {
-            result.clear();
-            result.push_back("IMPOSIBLE");
-            break;
-        }
-    }
-    return result;
-}
+  }
 
-int main() {
-    vector<string> roads = {"C1 Lima Trujillo 1", "C2 Tacna Trujillo", "C3 Tacna Arequipa"};
-    vector<string> result = reconstructRoads(roads);
-    for(string id : result) cout << id << " ";
-    cout << endl;
-    return 0;
-    
+  // Ordena carreteras deterioradas por costo.
+  sort(carreterasDeterioradas.begin(), carreterasDeterioradas.end(), [](const Carretera& a, const Carretera& b) {
+    if (a.costo != b.costo) {
+      return a.costo < b.costo;
+    }
+    return a.id < b.id;
+  });
+
+  // Selecciona carreteras que conectan ciudades diferentes.
+  for (const auto& carretera : carreterasDeterioradas) {
+    if (uf.encontrar(carretera.ciudad1) != uf.encontrar(carretera.ciudad2)) {
+      uf.unirConjuntos(carretera.ciudad1, carretera.ciudad2);
+      carreterasSeleccionadas.insert(carretera.id);
+    }
+  }
+
+  // Verifica que todas las ciudades estén conectadas.
+  string raiz = uf.encontrar(*ciudades.begin());
+  for (const auto& ciudad : ciudades) {
+    if (uf.encontrar(ciudad) != raiz) {
+      return "IMPOSIBLE";
+    }
+  }
+
+  // Construye el resultado.
+  string resultado;
+  for (const auto& id : carreterasSeleccionadas) {
+    resultado += id + " ";
+  }
+
+  return resultado.empty() ? "" : resultado.substr(0, resultado.length() - 1);
 }
