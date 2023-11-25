@@ -33,14 +33,15 @@ public:
     string raizA = encontrar(a);
     string raizB = encontrar(b);
 
-    if (raizA == raizB)
+    if (raizA == raizB) {
       return false;
+    }
 
-    if (rango[raizA] < rango[raizB])
+    if (rango[raizA] < rango[raizB]) {
       padre[raizA] = raizB;
-    else if (rango[raizA] > rango[raizB])
+    } else if (rango[raizA] > rango[raizB]) {
       padre[raizB] = raizA;
-    else {
+    } else {
       padre[raizB] = raizA;
       rango[raizA]++;
     }
@@ -120,5 +121,9 @@ string reconstruye(vector<string> listaCarreteras) {
     resultado += id + " ";
   }
 
-  return resultado.empty() ? "" : resultado.substr(0, resultado.length() - 1);
+  if (resultado.empty()) {
+    return "";
+  } else {
+    return resultado.substr(0, resultado.length() - 1);
+  }
 }
